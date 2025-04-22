@@ -9,54 +9,32 @@ jobs:
   zap_scan:
     runs-on: ubuntu-latest
     steps:
-
-    # Step 1: Checkout the code (FastAPI app)
+    
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # Step 2: Set up Python and install dependencies
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
 
-    # Step 3: Install FastAPI, Uvicorn, and ngrok
-    - name: Install FastAPI, Uvicorn, and ngrok
+    - name: Install FastAPI and Uvicorn
       run: |
         pip install fastapi uvicorn
-        sudo apt-get install -y unzip
-        curl -s https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip -o ngrok.zip
-        unzip ngrok.zip
-        sudo mv ngrok /usr/local/bin
 
-    # Step 4: Start FastAPI app locally
     - name: Start FastAPI App Locally
       run: |
         uvicorn main:app --host 0.0.0.0 --port 8000 &
-        sleep 5  # Allow time for the app to start
+        sleep 5  # allow time for the app to start
 
-    # Step 5: Start ngrok to expose the FastAPI app
-    - name: Start ngrok to expose the app
-      run: |
-        ./ngrok http 8000 > /dev/null &
-        sleep 5  # Wait for ngrok to establish the tunnel
-
-    # Step 6: Get the public URL from ngrok
-    - name: Get ngrok Public URL
-      run: |
-        NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-        echo "NGROK_URL=${NGROK_URL}" >> $GITHUB_ENV
-
-    # Step 7: Run OWASP ZAP Full Scan against the ngrok URL
     - name: Run ZAP Full Scan
       uses: zaproxy/action-full-scan@v0.10.0
       with:
-        target: ${{ env.NGROK_URL }}  # Use the ngrok public URL
+        target: 'http://localhost:8000'
         token: ${{ secrets.GITHUB_TOKEN }}
         fail_action: true
         cmd_options: '-config scanner.attackOnStart=true -config scanner.maxRuleDurationInMins=2'
 
-    # Step 8: Upload ZAP report
     - name: Upload ZAP Report
       uses: actions/upload-artifact@v3
       with:
