@@ -33,7 +33,7 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         fail_action: false  # Changed to false to avoid failing the workflow when alerts are found
         cmd_options: '-config scanner.attackOnStart=true -config scanner.maxRuleDurationInMins=2'
-        rules_file_name: ''  # Don't specify a rules file
+        # rules_file_name: ''  # Don't specify a rules file
         
     - name: Upload ZAP Report
       uses: actions/upload-artifact@v4
