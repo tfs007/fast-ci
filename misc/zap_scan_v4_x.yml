@@ -1,0 +1,51 @@
+name: ZAP Scan on FastAPI
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  zap_scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+        
+    - name: Install FastAPI and Uvicorn
+      run: |
+        pip install fastapi uvicorn
+        
+    - name: Start FastAPI App Locally
+      run: |
+        uvicorn main:app --host 0.0.0.0 --port 8000 &
+        sleep 10  # give more time for the app to start
+        
+    - name: ZAP Scan
+      uses: zaproxy/action-baseline@v0.10.0  # Using baseline scan instead of full scan - more reliable
+      with:
+        target: 'http://localhost:8000'
+        rules_file_name: ''  # No custom rules
+        cmd_options: '-a'  # Run the Ajax spider
+        allow_issue_writing: false
+        fail_action: false  # Don't fail the workflow
+        
+    - name: List generated files
+      run: |
+        echo "Files in workspace:"
+        ls -la
+        
+    - name: Upload ZAP Report
+      uses: actions/upload-artifact@v2
+      if: always()  # Always attempt to upload, even if previous steps failed
+      with:
+        name: zap-report
+        path: |
+          report.html
+          report-*.html
+          *.html
+        if-no-files-found: warn

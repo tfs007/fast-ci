@@ -3,18 +3,18 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-
 jobs:
   zap_scan:
     runs-on: ubuntu-latest
     steps:
+    
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
+        python-version: '3.11'
         
     - name: Install FastAPI and Uvicorn
       run: |
@@ -23,29 +23,30 @@ jobs:
     - name: Start FastAPI App Locally
       run: |
         uvicorn main:app --host 0.0.0.0 --port 8000 &
-        sleep 10  # give more time for the app to start
+        sleep 5  # allow time for the app to start
         
-    - name: ZAP Scan
-      uses: zaproxy/action-baseline@v0.10.0  # Using baseline scan instead of full scan - more reliable
+    - name: Create ZAP Config Directory
+      run: |
+        mkdir -p ${{ github.workspace }}/zap-config
+        echo '{}' > ${{ github.workspace }}/zap-config/config
+        
+    - name: Run ZAP Full Scan
+      uses: zaproxy/action-full-scan@v0.10.0
       with:
         target: 'http://localhost:8000'
-        rules_file_name: ''  # No custom rules
-        cmd_options: '-a'  # Run the Ajax spider
-        allow_issue_writing: false
-        fail_action: false  # Don't fail the workflow
-        
-    - name: List generated files
-      run: |
-        echo "Files in workspace:"
-        ls -la
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fail_action: false
+        cmd_options: '-c ${{ github.workspace }}/zap-config/config -config scanner.attackOnStart=true -config scanner.maxRuleDurationInMins=2'
+        allow_issue_writing: false  # Don't create GitHub issues
+        markdown_report: true  # Create a markdown report
+        html_report: true  # Create an HTML report
         
     - name: Upload ZAP Report
-      uses: actions/upload-artifact@v2
-      if: always()  # Always attempt to upload, even if previous steps failed
+      uses: actions/upload-artifact@v4
       with:
         name: zap-report
         path: |
-          report.html
-          report-*.html
-          *.html
+          ${{ github.workspace }}/*.html
+          ${{ github.workspace }}/*.json
+          ${{ github.workspace }}/*.md
         if-no-files-found: warn
